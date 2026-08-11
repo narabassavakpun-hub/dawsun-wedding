@@ -35,6 +35,7 @@ export function Gift({ reduced }: { reduced: boolean }) {
   const [error, setError] = useState('');
   const fileInput = useRef<HTMLInputElement>(null);
   const panelRef = useRef<HTMLDivElement>(null);
+  const boxRef = useRef<HTMLDivElement>(null);
 
   const qrSrc = asset(assets.promptPayQr);
 
@@ -77,6 +78,15 @@ export function Gift({ reduced }: { reduced: boolean }) {
     if (!file || busy) return;
     setStage('wrapping');
     setError('');
+
+    // ฟอร์มยุบหายไปแล้ว เลื่อนจอมาที่กล่องของขวัญเพื่อให้เห็นอนิเมชันห่อเต็มๆ
+    // รอ 1 เฟรมก่อน ให้ layout หลังฟอร์มยุบคำนวณเสร็จ ไม่งั้นจะเลื่อนไปผิดตำแหน่ง
+    requestAnimationFrame(() => {
+      boxRef.current?.scrollIntoView({
+        block: 'center',
+        behavior: reduced ? 'auto' : 'smooth',
+      });
+    });
 
     // เดินคู่กัน ไม่ใช่ต่อคิวกัน → เวลารวม = max(เวลาอัปโหลด, MIN_WRAP_MS)
     // เน็ตช้า 5 วิ → เห็นโบว์ผูกวนตลอด 5 วิ · เน็ตเร็ว 0.4 วิ → ยังห่อครบ 2 วิ
@@ -161,6 +171,7 @@ export function Gift({ reduced }: { reduced: boolean }) {
               // (ใช้ hidden ไม่ได้ เพราะจะบังคับอีกแกนเป็น auto แล้วตัดกล่องตอนลอยขึ้นด้วย
               //  ส่วน visible + clip เป็นคู่ที่ CSS อนุญาต)
               <div
+                ref={boxRef}
                 className="flex justify-center"
                 style={{ overflowX: 'clip', overflowY: 'visible' }}
               >
@@ -172,9 +183,12 @@ export function Gift({ reduced }: { reduced: boolean }) {
                   aria-label={copy.gift.open}
                   className="rounded-[var(--radius-lg)]"
                   style={{ cursor: stage === 'closed' ? 'pointer' : 'default', background: 'none' }}
-                  // ขยับเบาๆ ตอนปิด เชิญชวนให้กด
+                  // ปิดอยู่ = ขยับเบาๆ เชิญชวนให้กด
+                  // กำลังห่อ = ขยายขึ้นเล็กน้อย ดึงสายตามาที่กล่องหลังฟอร์มยุบหายไป
                   animate={
-                    stage === 'closed' && !reduced ? { y: [0, -6, 0], rotate: [0, -1.5, 1.5, 0] } : { y: 0, rotate: 0 }
+                    stage === 'closed' && !reduced
+                      ? { y: [0, -6, 0], rotate: [0, -1.5, 1.5, 0], scale: 1 }
+                      : { y: 0, rotate: 0, scale: stage === 'wrapping' && !reduced ? 1.08 : 1 }
                   }
                   transition={
                     stage === 'closed' && !reduced
@@ -235,19 +249,18 @@ export function Gift({ reduced }: { reduced: boolean }) {
               </AnimatePresence>
             </div>
 
-            {/* ---------- QR + แนบสลิป ---------- */}
+            {/* ---------- QR + แนบสลิป ----------
+                พอกดส่ง ฟอร์มยุบหายทันที (stage ไม่ใช่ 'qr' แล้ว)
+                เพื่อให้สายตาไปอยู่ที่กล่องของขวัญที่กำลังห่ออยู่ */}
             <AnimatePresence initial={false}>
-              {(stage === 'qr' || stage === 'wrapping') && (
+              {stage === 'qr' && (
                 <motion.div
                   key="qr-panel"
                   className="overflow-hidden"
                   initial={{ height: 0, opacity: 0 }}
-                  animate={{ height: 'auto', opacity: stage === 'wrapping' ? 0.45 : 1 }}
+                  animate={{ height: 'auto', opacity: 1 }}
                   exit={{ height: 0, opacity: 0 }}
-                  transition={{ duration: reduced ? 0 : 0.6, ease: EASE }}
-                  // ตอนกำลังห่อ ห้ามกดอะไรในฟอร์มได้อีก
-                  style={{ pointerEvents: stage === 'wrapping' ? 'none' : undefined }}
-                  aria-hidden={stage === 'wrapping'}
+                  transition={{ duration: reduced ? 0 : 0.45, ease: EASE }}
                 >
                   <motion.div
                     initial={{ y: reduced ? 0 : 24, scale: reduced ? 1 : 0.94 }}
