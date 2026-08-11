@@ -267,8 +267,9 @@ export const copy = {
     line: 'แชร์ผ่าน LINE',
     copy: 'คัดลอกลิงก์',
     copied: 'คัดลอกแล้ว',
-    calendarGoogle: 'เพิ่มลง Google ปฏิทิน',
-    calendarApple: 'เพิ่มลงปฏิทิน iPhone',
+    calendarGoogle: 'เพิ่มลงปฏิทิน (Android)',
+    calendarApple: 'เพิ่มลงปฏิทิน (iPhone)',
+    calendarHint: 'Android เพิ่มผ่าน Google ปฏิทิน แล้วจะขึ้นในปฏิทินเครื่องอัตโนมัติ',
   },
   footer: {
     thanks: 'ขอบคุณที่มาร่วมเป็นส่วนหนึ่ง\nในวันสำคัญของเรา',

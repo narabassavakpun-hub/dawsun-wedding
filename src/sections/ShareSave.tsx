@@ -40,6 +40,42 @@ export function ShareSave({ reduced }: { reduced: boolean }) {
 
   const lineShareUrl = `https://social-plugins.line.me/lineit/share?url=${encodeURIComponent(pageUrl)}`;
 
+  /**
+   * ใช้แค่จัดลำดับปุ่มปฏิทินให้ตรงกับเครื่องผู้ใช้ ไม่ได้ตัดฟีเจอร์ทิ้ง
+   * ถ้าเดาผิดก็ยังเห็นทั้งสองปุ่มอยู่ดี จึงไม่เสียหาย
+   *
+   * (เว็บไม่มี API เพิ่มกิจกรรมลงปฏิทินเครื่องโดยตรง — บน Android ต้องผ่าน
+   *  Google ปฏิทิน ซึ่งซิงก์เข้าแอปปฏิทินของเครื่องให้เองอยู่แล้ว)
+   */
+  const isIOS =
+    typeof navigator !== 'undefined' &&
+    (/iPad|iPhone|iPod/.test(navigator.userAgent) ||
+      // iPadOS รายงานตัวเป็น Mac ต้องดูว่ามีจอสัมผัสด้วย
+      (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1));
+
+  const calendarButtons = [
+    <motion.a
+      key="google"
+      variants={reveal(reduced)}
+      href={googleCalendarUrl()}
+      target="_blank"
+      rel="noopener noreferrer"
+      className="btn btn-soft"
+    >
+      <CalendarIcon />
+      {copy.share.calendarGoogle}
+    </motion.a>,
+    <motion.a
+      key="ics"
+      variants={reveal(reduced)}
+      href={asset('dawsun-wedding.ics')}
+      className="btn btn-soft"
+    >
+      <CalendarIcon />
+      {copy.share.calendarApple}
+    </motion.a>,
+  ];
+
   return (
     <section className="section" aria-label="แชร์และบันทึก">
       <div className="container">
@@ -79,31 +115,24 @@ export function ShareSave({ reduced }: { reduced: boolean }) {
             {copy.share.copy}
           </motion.button>
 
-          {/* ปฏิทินแยก 2 ปุ่ม —
-              เดิมใช้ปุ่มเดียวสร้างไฟล์ .ics เป็น blob ในเบราว์เซอร์
-              ซึ่ง iOS Safari และ in-app browser ของ LINE บล็อก กดแล้วไม่เกิดอะไรเลย
-              · Google = หน้าเว็บธรรมดา เปิดได้ทุกเบราว์เซอร์แน่นอน
-              · .ics = ไฟล์จริงบนเซิร์ฟเวอร์ iOS เปิดหน้าตัวอย่างปฏิทินให้กดเพิ่มได้ */}
-          <motion.a
-            variants={reveal(reduced)}
-            href={googleCalendarUrl()}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="btn btn-soft"
-          >
-            <CalendarIcon />
-            {copy.share.calendarGoogle}
-          </motion.a>
-
-          <motion.a
-            variants={reveal(reduced)}
-            href={asset('dawsun-wedding.ics')}
-            className="btn btn-soft"
-          >
-            <CalendarIcon />
-            {copy.share.calendarApple}
-          </motion.a>
+          {/* ปฏิทินแยก 2 ปุ่ม เรียงให้ตัวที่ตรงกับเครื่องขึ้นก่อน
+              · Google = หน้าเว็บธรรมดา เปิดได้ทุกเบราว์เซอร์รวม in-app ของ LINE
+                บน Android ถือเป็นทางเดียวที่เชื่อถือได้ เพราะไฟล์ .ics จะถูกดาวน์โหลด
+                แล้วผู้ใช้ต้องไปเปิดเองอีก 3 ขั้น (และมักล้มเหลวใน LINE)
+              · .ics = ไฟล์จริงบนเซิร์ฟเวอร์ iOS เปิดหน้าตัวอย่างปฏิทินให้กดเพิ่มได้เลย */}
+          {isIOS ? [calendarButtons[1], calendarButtons[0]] : calendarButtons}
         </motion.div>
+
+        <motion.p
+          className="mt-4 text-center"
+          style={{ fontSize: 'var(--fs-caption)', color: 'var(--ink-muted)', lineHeight: 1.8 }}
+          initial={{ opacity: 0 }}
+          whileInView={{ opacity: 1 }}
+          viewport={VIEWPORT}
+          transition={{ duration: reduced ? 0.2 : 0.6, delay: 0.2 }}
+        >
+          {copy.share.calendarHint}
+        </motion.p>
       </div>
     </section>
   );
