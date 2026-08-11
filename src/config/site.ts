@@ -246,6 +246,7 @@ export const copy = {
     slipChange: 'เปลี่ยนรูป',
     slipSend: 'ส่งของขวัญ',
     slipSending: 'กำลังห่อของขวัญ...',
+    slipDelivering: 'กำลังส่งถึงบ่าวสาว...',
     slipSkip: 'ไว้ทีหลัง',
 
     /* ---- ส่งสำเร็จ ---- */

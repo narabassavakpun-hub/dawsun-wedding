@@ -15,7 +15,15 @@ import { EASE, reveal, staggerParent, VIEWPORT } from '../lib/motion';
  */
 const QR_SIZE = { width: 588, height: 652 } as const;
 
-type Stage = 'closed' | 'qr' | 'sending' | 'sent';
+/**
+ * เวลาห่อของขวัญขั้นต่ำ — ถึงอัปโหลดจะเสร็จเร็วกว่านี้ก็ยังห่อจนครบ
+ * ไม่งั้นบนเน็ตเร็ว อนิเมชันผูกโบว์จะกระพริบผ่านไปจนดูไม่ทัน
+ */
+const MIN_WRAP_MS = 2000;
+/** เวลาที่กล่องลอยขึ้นไปจนจางหาย ต้องตรงกับ duration ใน GiftBox */
+const FLY_MS = 1400;
+
+type Stage = 'closed' | 'qr' | 'wrapping' | 'flying' | 'sent';
 
 /** ตอนที่ 11 — ร่วมมอบของขวัญ (prd.md ตอน 11) */
 export function Gift({ reduced }: { reduced: boolean }) {
@@ -42,34 +50,44 @@ export function Gift({ reduced }: { reduced: boolean }) {
   }, [file]);
 
   const boxState: BoxState =
-    stage === 'closed' ? 'closed' : stage === 'sending' ? 'wrapping' : stage === 'sent' ? 'sent' : 'open';
+    stage === 'closed'
+      ? 'closed'
+      : stage === 'wrapping'
+        ? 'wrapping'
+        : stage === 'flying'
+          ? 'flying'
+          : stage === 'sent'
+            ? 'sent'
+            : 'open';
+
+  const busy = stage === 'wrapping' || stage === 'flying';
+
+  // กันตั้ง state หลังคอมโพเนนต์ถูกถอด (ผู้ใช้เลื่อนออกไประหว่างรอส่ง)
+  const aliveRef = useRef(true);
+  const timerRef = useRef<number>(0);
+  useEffect(() => {
+    aliveRef.current = true;
+    return () => {
+      aliveRef.current = false;
+      window.clearTimeout(timerRef.current);
+    };
+  }, []);
 
   const handleSend = async () => {
-    if (!file) return;
-    setStage('sending');
+    if (!file || busy) return;
+    setStage('wrapping');
     setError('');
 
-    const result = await submitSlip(file, senderName);
+    // เดินคู่กัน ไม่ใช่ต่อคิวกัน → เวลารวม = max(เวลาอัปโหลด, MIN_WRAP_MS)
+    // เน็ตช้า 5 วิ → เห็นโบว์ผูกวนตลอด 5 วิ · เน็ตเร็ว 0.4 วิ → ยังห่อครบ 2 วิ
+    const [result] = await Promise.all([
+      submitSlip(file, senderName),
+      new Promise((resolve) => setTimeout(resolve, reduced ? 0 : MIN_WRAP_MS)),
+    ]);
 
-    if (result.ok) {
-      // รอให้อนิเมชันห่อกล่องเล่นจบก่อนค่อยเปลี่ยนหน้า
-      window.setTimeout(
-        () => {
-          setStage('sent');
-          const rect = panelRef.current?.getBoundingClientRect();
-          celebrate(
-            rect
-              ? {
-                  x: (rect.left + rect.width / 2) / window.innerWidth,
-                  y: (rect.top + rect.height / 2) / window.innerHeight,
-                }
-              : { x: 0.5, y: 0.5 },
-            reduced,
-          );
-        },
-        reduced ? 0 : 1100,
-      );
-    } else {
+    if (!aliveRef.current) return;
+
+    if (!result.ok) {
       setStage('qr');
       setError(
         result.reason === 'too-large'
@@ -80,6 +98,29 @@ export function Gift({ reduced }: { reduced: boolean }) {
               ? copy.gift.slipTooSoon
               : copy.gift.slipError,
       );
+      return;
+    }
+
+    const finish = () => {
+      if (!aliveRef.current) return;
+      setStage('sent');
+      const rect = panelRef.current?.getBoundingClientRect();
+      celebrate(
+        rect
+          ? {
+              x: (rect.left + rect.width / 2) / window.innerWidth,
+              y: (rect.top + rect.height / 2) / window.innerHeight,
+            }
+          : { x: 0.5, y: 0.5 },
+        reduced,
+      );
+    };
+
+    if (reduced) {
+      finish(); // ไม่มีอนิเมชันให้ดู ข้ามขั้นลอยไปเลย
+    } else {
+      setStage('flying');
+      timerRef.current = window.setTimeout(finish, FLY_MS);
     }
   };
 
@@ -116,8 +157,13 @@ export function Gift({ reduced }: { reduced: boolean }) {
           <motion.div variants={reveal(reduced)} className="mt-6" ref={panelRef}>
             {/* ---------- กล่องของขวัญ ---------- */}
             {stage !== 'sent' && (
-              // overflow-hidden กันกล่องที่เลื่อนออกทางขวา (x:160) ไปดันให้หน้าเลื่อนแนวนอนได้
-              <div className="flex justify-center overflow-hidden">
+              // overflow-x: clip กันหน้าเลื่อนแนวนอน แต่ยังปล่อยให้กล่องลอยพ้นกรอบด้านบนได้
+              // (ใช้ hidden ไม่ได้ เพราะจะบังคับอีกแกนเป็น auto แล้วตัดกล่องตอนลอยขึ้นด้วย
+              //  ส่วน visible + clip เป็นคู่ที่ CSS อนุญาต)
+              <div
+                className="flex justify-center"
+                style={{ overflowX: 'clip', overflowY: 'visible' }}
+              >
                 <motion.button
                   type="button"
                   onClick={() => stage === 'closed' && setStage('qr')}
@@ -158,16 +204,50 @@ export function Gift({ reduced }: { reduced: boolean }) {
               </motion.p>
             )}
 
+            {/* ---------- สถานะระหว่างห่อและส่ง ----------
+                aria-live ให้ screen reader อ่านความคืบหน้าตามไปด้วย */}
+            <div role="status" aria-live="polite">
+              <AnimatePresence mode="wait">
+                {busy && (
+                  <motion.p
+                    key={stage}
+                    className="mt-3 flex items-center justify-center gap-2"
+                    initial={{ opacity: 0, y: reduced ? 0 : 8 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    exit={{ opacity: 0, y: reduced ? 0 : -8 }}
+                    transition={{ duration: reduced ? 0 : 0.35, ease: EASE }}
+                    style={{
+                      fontFamily: 'var(--font-th-display)',
+                      fontSize: 'var(--fs-body-lg)',
+                      color: 'var(--seal-magenta)',
+                    }}
+                  >
+                    <motion.span
+                      animate={reduced ? {} : { scale: [1, 1.25, 1] }}
+                      transition={{ duration: 1.2, repeat: Infinity, ease: 'easeInOut' }}
+                      style={{ display: 'grid', placeItems: 'center' }}
+                    >
+                      <Heart size={16} filled color="var(--seal-magenta)" />
+                    </motion.span>
+                    {stage === 'wrapping' ? copy.gift.slipSending : copy.gift.slipDelivering}
+                  </motion.p>
+                )}
+              </AnimatePresence>
+            </div>
+
             {/* ---------- QR + แนบสลิป ---------- */}
             <AnimatePresence initial={false}>
-              {(stage === 'qr' || stage === 'sending') && (
+              {(stage === 'qr' || stage === 'wrapping') && (
                 <motion.div
                   key="qr-panel"
                   className="overflow-hidden"
                   initial={{ height: 0, opacity: 0 }}
-                  animate={{ height: 'auto', opacity: stage === 'sending' ? 0.45 : 1 }}
+                  animate={{ height: 'auto', opacity: stage === 'wrapping' ? 0.45 : 1 }}
                   exit={{ height: 0, opacity: 0 }}
                   transition={{ duration: reduced ? 0 : 0.6, ease: EASE }}
+                  // ตอนกำลังห่อ ห้ามกดอะไรในฟอร์มได้อีก
+                  style={{ pointerEvents: stage === 'wrapping' ? 'none' : undefined }}
+                  aria-hidden={stage === 'wrapping'}
                 >
                   <motion.div
                     initial={{ y: reduced ? 0 : 24, scale: reduced ? 1 : 0.94 }}
@@ -296,7 +376,7 @@ export function Gift({ reduced }: { reduced: boolean }) {
                         type="button"
                         onClick={() => fileInput.current?.click()}
                         className="btn btn-soft w-full"
-                        disabled={stage === 'sending'}
+                        disabled={busy}
                       >
                         <svg width="18" height="18" viewBox="0 0 24 24" aria-hidden="true">
                           <path
@@ -314,10 +394,10 @@ export function Gift({ reduced }: { reduced: boolean }) {
                       <button
                         type="button"
                         onClick={handleSend}
-                        disabled={!file || stage === 'sending'}
+                        disabled={!file || busy}
                         className="btn btn-primary w-full"
                       >
-                        {stage === 'sending' ? (
+                        {busy ? (
                           copy.gift.slipSending
                         ) : (
                           <>
@@ -330,7 +410,7 @@ export function Gift({ reduced }: { reduced: boolean }) {
                       <button
                         type="button"
                         onClick={() => setStage('closed')}
-                        disabled={stage === 'sending'}
+                        disabled={busy}
                         style={{
                           background: 'none',
                           border: 0,

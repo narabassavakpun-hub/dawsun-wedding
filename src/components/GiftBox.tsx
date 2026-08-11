@@ -7,7 +7,16 @@ const SEAL = 'var(--seal-magenta)';
 const CREAM = 'var(--theme-cream)';
 const LAV = 'var(--theme-lavender)';
 
-export type BoxState = 'closed' | 'open' | 'wrapping' | 'sent';
+export type BoxState = 'closed' | 'open' | 'wrapping' | 'flying' | 'sent';
+
+/** หนึ่งรอบของอนิเมชันผูกโบว์ (วินาที) */
+const WRAP_CYCLE = 1.8;
+
+/**
+ * SVG ใช้ transformOrigin อ้างอิงจากมุมของ viewport ไม่ใช่ตัว element
+ * ต้องสั่ง transformBox: 'fill-box' ทุกครั้งที่จะหมุน/ย่อรอบตัวเอง
+ */
+const originOf = (origin: string) => ({ transformBox: 'fill-box' as const, transformOrigin: origin });
 
 /** ช่อดอกไม้บนฝากล่อง */
 function LidFlowers() {
@@ -27,13 +36,25 @@ function LidFlowers() {
   );
 }
 
+/** หัวใจดวงเล็กสำหรับรอยทิ้งท้ายตอนกล่องลอยไป */
+function TinyHeart({ x, y, r = 1, fill }: { x: number; y: number; r?: number; fill: string }) {
+  return (
+    <path
+      transform={`translate(${x} ${y}) scale(${r})`}
+      d="M0 7 C -9 1 -7 -8 0 -4 C 7 -8 9 1 0 7 Z"
+      fill={fill}
+    />
+  );
+}
+
 /**
- * กล่องของขวัญมีอนิเมชันเปิด-ห่อ-ส่ง
+ * กล่องของขวัญ 5 สถานะ
  *
  *  closed   → ฝาปิด ขยับเบาๆ เชิญให้กด
  *  open     → ฝาเปิดลอยขึ้นเอียง มีประกายพุ่งออก
- *  wrapping → ฝากลับมาปิด โบว์รัดแน่น
- *  sent     → กล่องเลื่อนออกไปทางขวาแล้วจางหาย
+ *  wrapping → ริบบิ้นรัดลงมาแล้วผูกเป็นโบว์ **วนซ้ำไม่สิ้นสุด** ระหว่างรออัปโหลด
+ *  flying   → กล่องลอยขึ้นไปหาบ่าวสาว ทิ้งรอยหัวใจไว้ แล้วจางหาย
+ *  sent     → ซ่อน (ให้การ์ดขอบคุณขึ้นแทน)
  */
 export function GiftBox({
   state,
@@ -45,6 +66,8 @@ export function GiftBox({
   size?: number;
 }) {
   const opened = state === 'open';
+  const wrapping = state === 'wrapping';
+  const flying = state === 'flying';
   const sent = state === 'sent';
 
   // ฝากล่อง — ยกลอยขึ้นและเอียงตอนเปิด
@@ -57,21 +80,42 @@ export function GiftBox({
         opacity: opened ? 0.9 : 1,
       };
 
-  // ทั้งกล่องเลื่อนออกตอนส่ง
-  const boxAnim = sent
-    ? reduced
-      ? { opacity: 0 }
-      : { x: 160, y: -34, scale: 0.55, opacity: 0, rotate: 10 }
-    : { x: 0, y: 0, scale: 1, opacity: 1, rotate: 0 };
+  // ทั้งกล่องลอยขึ้นไปตอนส่ง
+  // จำกัด x ไว้แค่ 60 ตั้งใจให้ลอย "ขึ้น" เป็นหลัก ไม่พุ่งออกข้าง
+  // เพราะ container ครอบด้วย overflow-x: clip ถ้าไปไกลกว่านี้จะโดนตัดกลางคัน
+  const boxAnim =
+    flying || sent
+      ? reduced
+        ? { opacity: 0 }
+        : {
+            x: [0, 14, 60],
+            y: [0, -24, -190],
+            scale: [1, 1.06, 0.28],
+            rotate: [0, -5, 12],
+            opacity: [1, 1, 0],
+          }
+      : { x: 0, y: 0, scale: 1, opacity: 1, rotate: 0 };
+
+  /** คีย์เฟรมวนซ้ำระหว่างห่อ — ถ้าไม่ได้ห่ออยู่ให้อยู่สถานะผูกเสร็จแล้วนิ่งๆ */
+  const loop = (keyframes: Record<string, number[]>, rest: Record<string, number>, times: number[]) =>
+    wrapping && !reduced
+      ? {
+          animate: keyframes,
+          transition: { duration: WRAP_CYCLE, times, repeat: Infinity, ease: EASE },
+        }
+      : { animate: rest, transition: { duration: 0.35, ease: EASE } };
+
+  const vRibbon = loop({ scaleY: [0, 1, 1, 1] }, { scaleY: 1 }, [0, 0.3, 0.95, 1]);
+  const hRibbon = loop({ scaleX: [0, 0, 1, 1] }, { scaleX: 1 }, [0, 0.2, 0.5, 1]);
 
   return (
     <motion.svg
       width={size}
-      height={size * (200 / 200)}
+      height={size}
       viewBox="0 0 200 200"
       aria-hidden="true"
       animate={boxAnim}
-      transition={{ duration: reduced ? 0.25 : 0.9, ease: EASE }}
+      transition={{ duration: reduced ? 0.25 : 1.4, ease: EASE, times: [0, 0.25, 1] }}
       style={{ overflow: 'visible' }}
     >
       <defs>
@@ -85,8 +129,17 @@ export function GiftBox({
         </linearGradient>
       </defs>
 
-      {/* เงาใต้กล่อง */}
-      <ellipse cx="100" cy="182" rx="58" ry="7" fill="rgba(160,120,150,.18)" />
+      {/* เงาใต้กล่อง — หดลงตอนกล่องลอยขึ้น */}
+      <motion.ellipse
+        cx="100"
+        cy="182"
+        rx="58"
+        ry="7"
+        fill="rgba(160,120,150,.18)"
+        animate={flying && !reduced ? { scaleX: 0.3, opacity: 0 } : { scaleX: 1, opacity: 1 }}
+        transition={{ duration: reduced ? 0.2 : 1, ease: EASE }}
+        style={originOf('center')}
+      />
 
       {/* ---------- ตัวกล่อง ---------- */}
       <g>
@@ -100,11 +153,28 @@ export function GiftBox({
           stroke={PINK}
           strokeWidth="2"
         />
-        {/* ริบบิ้นแนวตั้ง */}
-        <rect x="92" y="82" width="16" height="96" fill={LAV} opacity="0.55" />
-        <path d="M92 82 V178 M108 82 V178" stroke={SEAL} strokeWidth="1.2" opacity=".5" fill="none" />
-        {/* ริบบิ้นแนวนอน */}
-        <rect x="42" y="118" width="116" height="14" fill={LAV} opacity="0.4" />
+        {/* ริบบิ้นแนวตั้ง — รัดลงมาจากด้านบน */}
+        <motion.rect
+          x="92"
+          y="82"
+          width="16"
+          height="96"
+          fill={LAV}
+          opacity="0.55"
+          {...vRibbon}
+          style={originOf('top')}
+        />
+        {/* ริบบิ้นแนวนอน — รัดจากซ้ายไปขวา */}
+        <motion.rect
+          x="42"
+          y="118"
+          width="116"
+          height="14"
+          fill={LAV}
+          opacity="0.4"
+          {...hRibbon}
+          style={originOf('left')}
+        />
       </g>
 
       {/* ---------- ของข้างในโผล่ตอนเปิด ---------- */}
@@ -113,7 +183,7 @@ export function GiftBox({
           initial={{ y: 20, opacity: 0, scale: 0.7 }}
           animate={{ y: -8, opacity: 1, scale: 1 }}
           transition={{ duration: 0.6, ease: EASE, delay: 0.25 }}
-          style={{ transformOrigin: '100px 90px' }}
+          style={originOf('center')}
         >
           <Star x={100} y={64} r={1.1} fill={CREAM} />
           <Star x={74} y={74} r={0.7} fill={PINK} />
@@ -127,7 +197,7 @@ export function GiftBox({
       <motion.g
         animate={lidAnim}
         transition={{ duration: reduced ? 0.2 : 0.75, ease: EASE }}
-        style={{ transformOrigin: '100px 78px' }}
+        style={originOf('center')}
       >
         <rect
           x="32"
@@ -139,15 +209,25 @@ export function GiftBox({
           stroke={PINK}
           strokeWidth="2"
         />
-        <rect x="92" y="62" width="16" height="30" fill={LAV} opacity="0.55" />
+        <motion.rect
+          x="92"
+          y="62"
+          width="16"
+          height="30"
+          fill={LAV}
+          opacity="0.55"
+          {...vRibbon}
+          style={originOf('top')}
+        />
 
-        {/* โบว์ */}
+        {/* โบว์ — ผูกเป็นปมท้ายรอบ */}
         <motion.g
-          animate={
-            state === 'wrapping' && !reduced ? { scale: [1, 1.28, 1] } : { scale: 1 }
-          }
-          transition={{ duration: 0.6, ease: EASE }}
-          style={{ transformOrigin: '100px 58px' }}
+          {...loop(
+            { scale: [0.2, 0.2, 1.15, 1], rotate: [-30, -30, 8, 0] },
+            { scale: 1, rotate: 0 },
+            [0, 0.45, 0.78, 0.95],
+          )}
+          style={originOf('center')}
         >
           <path
             d="M100 58 C 86 40 62 40 62 54 C 62 64 82 64 100 58 Z"
@@ -169,7 +249,29 @@ export function GiftBox({
         <LidFlowers />
       </motion.g>
 
-      {/* ประกายพุ่งออกตอนเปิด */}
+      {/* ---------- หัวใจโคจรรอบกล่อง บอกว่ากำลังทำงานอยู่ ---------- */}
+      {wrapping && !reduced && (
+        <motion.g
+          animate={{ rotate: 360 }}
+          transition={{ duration: 3, repeat: Infinity, ease: 'linear' }}
+          style={{ transformOrigin: '100px 128px' }}
+        >
+          {[0, 120, 240].map((a) => {
+            const rad = (a * Math.PI) / 180;
+            return (
+              <TinyHeart
+                key={a}
+                x={100 + Math.cos(rad) * 82}
+                y={128 + Math.sin(rad) * 62}
+                r={0.85}
+                fill={a === 0 ? SEAL : PINK}
+              />
+            );
+          })}
+        </motion.g>
+      )}
+
+      {/* ---------- ประกายพุ่งออกตอนเปิด ---------- */}
       {opened &&
         !reduced &&
         [0, 45, 90, 135, 180, 225, 270, 315].map((a) => (
@@ -185,6 +287,20 @@ export function GiftBox({
             transition={{ duration: 0.9, ease: EASE, delay: 0.1 }}
           >
             <Star x={100} y={78} r={0.6} fill={a % 90 === 0 ? CREAM : PINK} />
+          </motion.g>
+        ))}
+
+      {/* ---------- รอยหัวใจทิ้งท้ายตอนลอยไป ---------- */}
+      {flying &&
+        !reduced &&
+        [0, 1, 2, 3].map((i) => (
+          <motion.g
+            key={i}
+            initial={{ opacity: 0, x: 0, y: 0, scale: 0.5 }}
+            animate={{ opacity: [0, 0.9, 0], y: [0, 26, 62], x: [0, -8 + i * 6, -16 + i * 10], scale: [0.5, 1, 0.4] }}
+            transition={{ duration: 1.1, ease: 'easeOut', delay: i * 0.12 }}
+          >
+            <TinyHeart x={100} y={140} r={0.9} fill={i % 2 ? PINK : SEAL} />
           </motion.g>
         ))}
     </motion.svg>
