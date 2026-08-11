@@ -313,23 +313,7 @@ export function Gift({ reduced }: { reduced: boolean }) {
                     />
 
                     {/* ---- แนบสลิป ---- */}
-                    <p
-                      style={{
-                        fontFamily: 'var(--font-th-display)',
-                        fontSize: 'var(--fs-display-md)',
-                        color: 'var(--ink)',
-                      }}
-                    >
-                      {copy.gift.slipHeading}
-                    </p>
-                    <p
-                      className="mt-1"
-                      style={{ fontSize: 'var(--fs-caption)', color: 'var(--ink-muted)', lineHeight: 1.8 }}
-                    >
-                      {copy.gift.slipHint}
-                    </p>
-
-                    <div className="mt-4 text-left">
+                    <div className="text-left">
                       <label
                         htmlFor="gift-sender"
                         className="mb-1.5 block"
