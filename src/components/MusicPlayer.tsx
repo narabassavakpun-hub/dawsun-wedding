@@ -73,39 +73,70 @@ export function MusicPlayer({ shouldPlay, reduced }: { shouldPlay: boolean; redu
   }, [shouldPlay]);
 
   /**
-   * หยุดเพลงเมื่อออกจากหน้า/พักจอ แล้วเล่นต่อทันทีเมื่อกลับเข้ามา
+   * หยุดเพลงเมื่อออกจากหน้า/พักจอ แล้วเล่นต่อเมื่อกลับเข้ามา
    *
-   * ต้องหยุดเอง เพราะบางเบราว์เซอร์ (โดยเฉพาะ Chrome บน Android)
-   * ปล่อยให้เสียงเล่นต่อเบื้องหลังแม้ปิดจอไปแล้ว
+   * ต้องหยุดเอง เพราะ Chrome บน Android ปล่อยให้เสียงเล่นต่อเบื้องหลังแม้ปิดจอ
    *
-   * ⚠️ กุญแจสำคัญคือ **ห้ามล้าง `wantPlayRef` ตอนหยุด** — เก็บเจตนาผู้ใช้ไว้เสมอ
-   * ตอนกลับมาถึงจะรู้ว่าควรเล่นต่อ (นี่คือจุดที่เคยพลาดจนเพลงหายถาวร)
+   * ⚠️ ห้ามล้าง `wantPlayRef` ตอนหยุด — เก็บเจตนาผู้ใช้ไว้เสมอ
+   * ตอนกลับมาถึงจะรู้ว่าควรเล่นต่อ
    *
-   * ⚠️ ถ้า play() ตอนกลับมาถูกปฏิเสธ ก็ยังห้ามล้างเจตนา ให้ตั้ง `blocked` แทน
-   * ปุ่มหัวใจจะกระพริบเชิญให้แตะ ซึ่งการแตะเป็น user gesture ที่ iOS ยอมรับแน่นอน
+   * ⚠️ **iOS และ Chrome ปฏิเสธ `play()` ที่ไม่ได้มาจากการแตะของผู้ใช้**
+   * การเรียก play() ตอน visibilitychange จึงล้มเหลวบ่อยมาก เพลงเลยไม่กลับมา
+   * ทางแก้: ถ้าเรียกแล้วไม่ผ่าน ให้ **ดักการแตะจอครั้งถัดไป** แล้วค่อยเล่น
+   * ผู้ใช้กลับมาก็ต้องแตะหรือเลื่อนจออยู่แล้ว เพลงจึงกลับมาเหมือนอัตโนมัติ
    */
   useEffect(() => {
-    const pauseForBackground = () => {
-      const audio = audioRef.current;
-      if (!audio || audio.paused) return;
-      // ต้องหยุด fade ที่ค้างอยู่ด้วย ไม่งั้น interval จะไปไล่ volume ต่อจนเสียงเพี้ยนตอนกลับมา
-      window.clearInterval(fadeRef.current);
-      audio.pause();
+    const GESTURES = ['pointerdown', 'touchstart', 'click', 'keydown', 'scroll'] as const;
+
+    const disarm = () => {
+      GESTURES.forEach((e) => window.removeEventListener(e, onGesture));
     };
 
-    const resumeIfWanted = () => {
+    const start = () => {
       const audio = audioRef.current;
-      if (!audio || document.hidden) return;
-      if (!wantPlayRef.current || !audio.paused) return;
+      if (!audio || document.hidden) return false;
+      if (!wantPlayRef.current || !audio.paused) return false;
 
       audio.volume = 0;
       audio
         .play()
         .then(() => {
           setBlocked(false);
+          disarm();
           fadeTo(TARGET_VOLUME, undefined, RESUME_FADE_MS);
         })
         .catch(() => setBlocked(true));
+      return true;
+    };
+
+    function onGesture() {
+      const audio = audioRef.current;
+      // เพลงกลับมาเล่นแล้ว หรือผู้ใช้สั่งหยุดเอง — เลิกดัก
+      if (!wantPlayRef.current || (audio && !audio.paused)) {
+        disarm();
+        return;
+      }
+      start();
+    }
+
+    const arm = () => {
+      disarm(); // กันผูกซ้ำ
+      GESTURES.forEach((e) => window.addEventListener(e, onGesture, { passive: true }));
+    };
+
+    const pauseForBackground = () => {
+      const audio = audioRef.current;
+      if (!audio || audio.paused) return;
+      // ต้องหยุด fade ที่ค้างอยู่ด้วย ไม่งั้น interval จะไล่ volume ต่อจนเสียงเพี้ยนตอนกลับมา
+      window.clearInterval(fadeRef.current);
+      audio.pause();
+    };
+
+    const resumeIfWanted = () => {
+      start();
+      // ผูกตัวดักไว้เสมอ เพราะ play() ด้านบนเป็น async
+      // กว่าจะรู้ว่าถูกปฏิเสธก็สายไปแล้ว ถ้าสำเร็จ start() จะ disarm ให้เอง
+      if (wantPlayRef.current) arm();
     };
 
     const onVisibility = () => (document.hidden ? pauseForBackground() : resumeIfWanted());
@@ -117,6 +148,7 @@ export function MusicPlayer({ shouldPlay, reduced }: { shouldPlay: boolean; redu
     window.addEventListener('focus', resumeIfWanted);
 
     return () => {
+      disarm();
       document.removeEventListener('visibilitychange', onVisibility);
       window.removeEventListener('pagehide', pauseForBackground);
       window.removeEventListener('pageshow', resumeIfWanted);
