@@ -28,6 +28,24 @@ jobs:
 
       - run: npm ci
 
+      # ถ้าไม่มี secret เว็บจะ build ผ่านแต่ส่งคำอวยพร/สลิปไม่ได้ และไม่มีอะไรเตือน
+      # จึงหยุดตั้งแต่ตรงนี้พร้อมบอกวิธีแก้ ดีกว่าปล่อยเว็บเสียขึ้นไปเงียบๆ
+      - name: ตรวจว่ามี VITE_WISH_ENDPOINT
+        env:
+          VITE_WISH_ENDPOINT: ${{ secrets.VITE_WISH_ENDPOINT }}
+        run: |
+          if [ -z "$VITE_WISH_ENDPOINT" ]; then
+            echo "::error::ไม่พบ secret ชื่อ VITE_WISH_ENDPOINT"
+            echo "::error::ต้องเป็น *Repository secret* เท่านั้น (Environment secret ใช้ไม่ได้ เพราะ job นี้ไม่ได้ผูกกับ environment)"
+            echo "::error::ไปที่ Settings > Secrets and variables > Actions > แท็บ Secrets > New repository secret"
+            exit 1
+          fi
+          case "$VITE_WISH_ENDPOINT" in
+            https://script.google.com/macros/s/*/exec) : ;;
+            *) echo "::error::URL ต้องขึ้นต้น https://script.google.com/macros/s/ และลงท้าย /exec (ห้ามมี /u/1/)"; exit 1 ;;
+          esac
+          echo "พบ endpoint แล้ว (${#VITE_WISH_ENDPOINT} ตัวอักษร)"
+
       - name: Build
         env:
           # base path ต้องตรงกับชื่อ repo
