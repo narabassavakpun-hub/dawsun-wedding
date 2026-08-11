@@ -3,7 +3,10 @@ import { motion } from 'motion/react';
 import { asset, assets, copy } from '../config/site';
 import { Heart } from './Ornaments';
 
+/** ค่อยๆ ดังขึ้นตอนเปิดซองครั้งแรก */
 const FADE_MS = 2000;
+/** ตอนกลับเข้าเว็บ ต้องได้ยินเพลงเกือบทันที ไม่ต้องค่อยๆ ดังนาน */
+const RESUME_FADE_MS = 500;
 const TARGET_VOLUME = 0.55;
 
 /**
@@ -27,13 +30,13 @@ export function MusicPlayer({ shouldPlay, reduced }: { shouldPlay: boolean; redu
   const [blocked, setBlocked] = useState(false);
   const [visible, setVisible] = useState(false);
 
-  const fadeTo = (target: number, done?: () => void) => {
+  const fadeTo = (target: number, done?: () => void, durationMs = FADE_MS) => {
     const audio = audioRef.current;
     if (!audio) return;
     window.clearInterval(fadeRef.current);
 
     const step = 50;
-    const delta = (target - audio.volume) / (FADE_MS / step);
+    const delta = (target - audio.volume) / (durationMs / step);
     fadeRef.current = window.setInterval(() => {
       const next = audio.volume + delta;
       if ((delta > 0 && next >= target) || (delta < 0 && next <= target)) {
@@ -70,38 +73,54 @@ export function MusicPlayer({ shouldPlay, reduced }: { shouldPlay: boolean; redu
   }, [shouldPlay]);
 
   /**
-   * เล่นต่อเมื่อกลับเข้าเว็บหลังสลับไปแอปอื่น
+   * หยุดเพลงเมื่อออกจากหน้า/พักจอ แล้วเล่นต่อทันทีเมื่อกลับเข้ามา
    *
-   * ⚠️ ห้ามสั่ง audio.pause() เองตอนแท็บถูกซ่อน — เบราว์เซอร์มือถือหยุดให้เองอยู่แล้ว
-   * การสั่งเองคือต้นเหตุที่ทำให้ตอนกลับมาต้องเรียก play() ใหม่ แล้วโดน iOS ปฏิเสธ
-   * เพราะไม่ได้มาจาก user gesture ผลคือเพลงหายเงียบไปเลย
+   * ต้องหยุดเอง เพราะบางเบราว์เซอร์ (โดยเฉพาะ Chrome บน Android)
+   * ปล่อยให้เสียงเล่นต่อเบื้องหลังแม้ปิดจอไปแล้ว
    *
-   * ⚠️ ถ้า play() ถูกปฏิเสธ **ห้ามล้างเจตนาผู้ใช้** (wantPlayRef) ให้ตั้ง blocked แทน
-   * ปุ่มหัวใจจะกระพริบเชิญให้แตะ ซึ่งการแตะนั้นเป็น user gesture ที่ iOS ยอมรับ
+   * ⚠️ กุญแจสำคัญคือ **ห้ามล้าง `wantPlayRef` ตอนหยุด** — เก็บเจตนาผู้ใช้ไว้เสมอ
+   * ตอนกลับมาถึงจะรู้ว่าควรเล่นต่อ (นี่คือจุดที่เคยพลาดจนเพลงหายถาวร)
+   *
+   * ⚠️ ถ้า play() ตอนกลับมาถูกปฏิเสธ ก็ยังห้ามล้างเจตนา ให้ตั้ง `blocked` แทน
+   * ปุ่มหัวใจจะกระพริบเชิญให้แตะ ซึ่งการแตะเป็น user gesture ที่ iOS ยอมรับแน่นอน
    */
   useEffect(() => {
-    const tryResume = () => {
+    const pauseForBackground = () => {
+      const audio = audioRef.current;
+      if (!audio || audio.paused) return;
+      // ต้องหยุด fade ที่ค้างอยู่ด้วย ไม่งั้น interval จะไปไล่ volume ต่อจนเสียงเพี้ยนตอนกลับมา
+      window.clearInterval(fadeRef.current);
+      audio.pause();
+    };
+
+    const resumeIfWanted = () => {
       const audio = audioRef.current;
       if (!audio || document.hidden) return;
       if (!wantPlayRef.current || !audio.paused) return;
 
+      audio.volume = 0;
       audio
         .play()
         .then(() => {
           setBlocked(false);
-          fadeTo(TARGET_VOLUME);
+          fadeTo(TARGET_VOLUME, undefined, RESUME_FADE_MS);
         })
         .catch(() => setBlocked(true));
     };
 
-    document.addEventListener('visibilitychange', tryResume);
-    // iOS ใช้ bfcache — กลับมาจากแอปอื่นบางครั้งยิงแค่ pageshow ไม่ยิง visibilitychange
-    window.addEventListener('pageshow', tryResume);
-    window.addEventListener('focus', tryResume);
+    const onVisibility = () => (document.hidden ? pauseForBackground() : resumeIfWanted());
+
+    document.addEventListener('visibilitychange', onVisibility);
+    // ครอบกรณีที่ iOS ไม่ยิง visibilitychange (bfcache / กลับจากแอปอื่นบางจังหวะ)
+    window.addEventListener('pagehide', pauseForBackground);
+    window.addEventListener('pageshow', resumeIfWanted);
+    window.addEventListener('focus', resumeIfWanted);
+
     return () => {
-      document.removeEventListener('visibilitychange', tryResume);
-      window.removeEventListener('pageshow', tryResume);
-      window.removeEventListener('focus', tryResume);
+      document.removeEventListener('visibilitychange', onVisibility);
+      window.removeEventListener('pagehide', pauseForBackground);
+      window.removeEventListener('pageshow', resumeIfWanted);
+      window.removeEventListener('focus', resumeIfWanted);
     };
   }, []);
 
