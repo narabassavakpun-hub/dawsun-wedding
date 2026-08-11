@@ -1,0 +1,404 @@
+@import 'tailwindcss';
+
+/* ============================================================
+   Design tokens — สกัดจากการ์ดเชิญและซองจริง
+   แหล่งอ้างอิง: brand.md ข้อ 10  · ห้ามใส่ค่าสีดิบใน component
+   ============================================================ */
+:root {
+  /* Sky */
+  --sky-lavender: #c8bfe7;
+  --sky-blush: #f3c6d6;
+  --sky-peach: #f8d9c0;
+  --sky-cream: #fdf6ee;
+  --gradient-sky: linear-gradient(160deg, #c8bfe7 0%, #f3c6d6 35%, #f8d9c0 70%, #fdf6ee 100%);
+
+  /* Theme 5 สี (แถบ THEME COLOR บนการ์ด) */
+  --theme-pink: #f4a9be;
+  --theme-lavender: #b9aee8;
+  --theme-blue: #9fd0ee;
+  --theme-cream: #f8dfa8;
+  --theme-peach: #f7be94;
+
+  /* Ink & accent */
+  --script-pink: #e8608e;
+  --seal-magenta: #b5246b;
+  --dusty-blue: #7fa6b5;
+  --ink: #4a4550;
+  --ink-muted: #8c8592;
+  --paper: #fffcfa;
+  --paper-warm: #fdf6ee;
+
+  /* Type */
+  --font-script: 'Great Vibes', cursive;
+  --font-display: 'Cormorant Garamond', serif;
+  --font-th-display: 'Charm', serif;
+  --font-th-script: 'Charmonman', cursive;
+  --font-body: 'Sarabun', system-ui, -apple-system, sans-serif;
+
+  /* Type scale */
+  --fs-script-hero: clamp(3rem, 14vw, 6rem);
+  --fs-display-xl: clamp(2.25rem, 9vw, 4rem);
+  --fs-display-lg: clamp(1.75rem, 6.5vw, 2.75rem);
+  --fs-display-md: clamp(1.35rem, 5vw, 1.9rem);
+  --fs-body-lg: clamp(1.05rem, 4vw, 1.2rem);
+  --fs-body: clamp(0.95rem, 3.6vw, 1.05rem);
+  --fs-caption: clamp(0.8rem, 3.2vw, 0.9rem);
+
+  /* Radius & shadow */
+  --radius-sm: 12px;
+  --radius-md: 20px;
+  --radius-lg: 28px;
+  --radius-arch: 999px 999px 20px 20px;
+  --shadow-soft: 0 8px 32px -12px rgba(184, 140, 170, 0.28);
+  --shadow-lift: 0 20px 60px -20px rgba(160, 120, 150, 0.35);
+
+  /* Layout */
+  --content-max: 42rem;
+  --page-gutter: clamp(1.25rem, 6vw, 2.5rem);
+}
+
+/* Tailwind v4 theme bridge — ให้ใช้ class เช่น text-ink, bg-paper, font-script ได้ */
+@theme inline {
+  --color-sky-lavender: var(--sky-lavender);
+  --color-sky-blush: var(--sky-blush);
+  --color-sky-peach: var(--sky-peach);
+  --color-sky-cream: var(--sky-cream);
+  --color-theme-pink: var(--theme-pink);
+  --color-theme-lavender: var(--theme-lavender);
+  --color-theme-blue: var(--theme-blue);
+  --color-theme-cream: var(--theme-cream);
+  --color-theme-peach: var(--theme-peach);
+  --color-script-pink: var(--script-pink);
+  --color-seal: var(--seal-magenta);
+  --color-dusty: var(--dusty-blue);
+  --color-ink: var(--ink);
+  --color-ink-muted: var(--ink-muted);
+  --color-paper: var(--paper);
+  --color-paper-warm: var(--paper-warm);
+
+  --font-script: var(--font-script);
+  --font-display: var(--font-display);
+  --font-thai: var(--font-th-display);
+  --font-thai-script: var(--font-th-script);
+  --font-body: var(--font-body);
+
+  --radius-arch: var(--radius-arch);
+  --shadow-soft: var(--shadow-soft);
+  --shadow-lift: var(--shadow-lift);
+}
+
+/* ============================================================
+   Base
+   ============================================================ */
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html {
+  -webkit-text-size-adjust: 100%;
+  scroll-behavior: auto; /* Lenis จัดการ smooth scroll เอง */
+  /* ล็อกไม่ให้เลื่อนแนวนอนเด็ดขาด
+     ต้องใส่ที่ html ด้วย ไม่ใช่แค่ body — เพราะ iOS Safari เลื่อนที่ documentElement ได้
+     ใช้ clip แทน hidden เพราะ hidden จะทำให้ element นี้กลายเป็น scroll container
+     แล้วไปทำให้ position: sticky/fixed ข้างในเพี้ยน */
+  overflow-x: clip;
+  overscroll-behavior-x: none;
+}
+
+@supports not (overflow: clip) {
+  html {
+    overflow-x: hidden;
+  }
+}
+
+body {
+  margin: 0;
+  /* ระบุสีพื้นและสีตัวอักษรชัดเจน ไม่ให้ระบบผู้ใช้ยัดสีมาเอง — brand.md ข้อ 10 */
+  background-color: var(--sky-blush);
+  color: var(--ink);
+  font-family: var(--font-body);
+  font-size: var(--fs-body);
+  /* ภาษาไทยต้องการ line-height สูง — brand.md ข้อ 3.2 */
+  line-height: 1.8;
+  font-weight: 300;
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+  overflow-x: clip;
+  overscroll-behavior-x: none;
+  /* อนุญาตแค่ปัดขึ้น-ลง และซูมสองนิ้ว — ปัดซ้ายขวาไม่ทำอะไร
+     (ยังคง pinch-zoom ไว้ เพราะผู้สูงอายุใช้ซูมอ่าน ถ้าตัดออกจะเข้าถึงยาก)
+     องค์ประกอบที่ต้องปัดแนวนอนเอง เช่นรูปใน lightbox
+     Motion จะตั้ง touch-action ของตัวเองทับให้อยู่แล้ว */
+  touch-action: pan-y pinch-zoom;
+}
+
+@supports not (overflow: clip) {
+  body {
+    overflow-x: hidden;
+  }
+}
+
+/* iOS จะซูมหน้าจอเข้าอัตโนมัติเมื่อโฟกัสช่องกรอกที่ font-size < 16px
+   แล้วค้างอยู่สถานะซูม ทำให้เลื่อนซ้ายขวาได้ — บังคับอย่างน้อย 16px กันไว้ */
+input,
+textarea,
+select {
+  font-size: max(16px, var(--fs-body));
+}
+
+/* ล็อกการเลื่อนตอนซองยังไม่เปิด
+   ใช้ position: fixed ไม่ใช่แค่ overflow: hidden
+   เพราะ iOS Safari ยังเลื่อนที่ documentElement ได้ถ้าล็อกแค่ body */
+body[data-locked='true'] {
+  position: fixed;
+  inset: 0;
+  overflow: hidden;
+  overscroll-behavior: none;
+  touch-action: none;
+}
+
+/* พื้นหลังท้องฟ้าคงที่
+   ใช้ div ชั้น fixed แทน background-attachment: fixed
+   เพราะ iOS Safari มีบั๊กกับ fixed attachment — CLAUDE.md */
+.sky-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: -2;
+  background: var(--gradient-sky);
+  background-size: 100% 100%;
+}
+
+.sky-backdrop::after {
+  /* ฝ้าเมฆนุ่มๆ ทับอีกชั้น ให้ดูมีมิติเหมือนพื้นหลังการ์ดจริง */
+  content: '';
+  position: absolute;
+  inset: 0;
+  background:
+    radial-gradient(60% 45% at 18% 12%, rgba(255, 255, 255, 0.55), transparent 70%),
+    radial-gradient(55% 40% at 85% 30%, rgba(255, 255, 255, 0.4), transparent 70%),
+    radial-gradient(70% 50% at 50% 92%, rgba(255, 255, 255, 0.5), transparent 72%);
+}
+
+img,
+svg {
+  display: block;
+  max-width: 100%;
+}
+
+button {
+  font: inherit;
+  color: inherit;
+  cursor: pointer;
+}
+
+input,
+textarea {
+  font: inherit;
+  color: inherit;
+}
+
+/* Focus ring — ห้าม outline:none (brand.md ข้อ 9) */
+:focus-visible {
+  outline: 2px solid var(--seal-magenta);
+  outline-offset: 3px;
+  border-radius: 4px;
+}
+
+::selection {
+  background: var(--theme-pink);
+  color: var(--ink);
+}
+
+/* ============================================================
+   Utilities
+   ============================================================ */
+.section {
+  position: relative;
+  width: 100%;
+  padding-inline: var(--page-gutter);
+  padding-block: clamp(4rem, 14vw, 7rem);
+}
+
+.container {
+  width: 100%;
+  max-width: var(--content-max);
+  margin-inline: auto;
+}
+
+/* แผ่นกระดาษโปร่งให้เห็นท้องฟ้าเบลอผ่าน — brand.md ข้อ 2.4 */
+.paper {
+  background: color-mix(in srgb, var(--paper) 88%, transparent);
+  backdrop-filter: blur(12px) saturate(1.1);
+  -webkit-backdrop-filter: blur(12px) saturate(1.1);
+  border: 1px solid rgba(255, 255, 255, 0.6);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-soft);
+}
+
+/* หัวข้ออังกฤษตัวใหญ่เว้นวรรคกว้าง — brand.md ข้อ 8 */
+.eyebrow {
+  font-family: var(--font-display);
+  font-size: var(--fs-caption);
+  font-weight: 400;
+  letter-spacing: 0.34em;
+  text-transform: uppercase;
+  color: var(--dusty-blue);
+  /* letter-spacing เพิ่มช่องว่างท้ายตัวสุดท้ายด้วย ทำให้ข้อความที่จัดกลางเบี้ยวไปทางซ้าย
+     ชดเชยด้วย text-indent ครึ่งหนึ่งของ letter-spacing */
+  text-indent: 0.17em;
+}
+
+.heading-th {
+  font-family: var(--font-th-display);
+  font-size: var(--fs-display-md);
+  font-weight: 700;
+  line-height: 1.5;
+  color: var(--ink);
+  /* ห้าม letter-spacing กับข้อความไทย — brand.md ข้อ 3.2 */
+  letter-spacing: 0;
+}
+
+.script {
+  font-family: var(--font-script);
+  color: var(--script-pink);
+  line-height: 1.15;
+}
+
+.display-name {
+  font-family: var(--font-display);
+  font-weight: 300;
+  letter-spacing: 0.14em;
+  text-indent: 0.07em; /* ชดเชยการจัดกลาง — ดูหมายเหตุที่ .eyebrow */
+  color: var(--dusty-blue);
+  line-height: 1.15;
+}
+
+.thai-nowrap {
+  white-space: nowrap;
+}
+
+/* ตัวเลขทุกที่ในเว็บ
+   Cormorant Garamond ตั้งค่าเริ่มต้นเป็น oldstyle figures — เลข 3 4 5 7 9 ห้อยต่ำกว่าเส้นบรรทัด
+   ส่วน 1 2 0 เตี้ย ทำให้ "18" หรือ "2026" ดูสูงต่ำไม่เท่ากันเหมือนตัวเลขตก
+   บังคับเป็น lining figures (สูงเท่ากันทุกตัว) + tabular (กว้างเท่ากัน กันเลขกระตุกตอนนับถอยหลัง) */
+.numeric {
+  font-variant-numeric: lining-nums tabular-nums;
+  font-feature-settings:
+    'lnum' 1,
+    'tnum' 1;
+}
+
+.visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+/* honeypot — ห้ามใช้ display:none บอทตรวจจับได้ */
+.honeypot {
+  position: absolute;
+  left: -9999px;
+  top: 0;
+  width: 1px;
+  height: 1px;
+  opacity: 0;
+  pointer-events: none;
+}
+
+/* ปุ่มหลัก */
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  min-height: 48px; /* พื้นที่แตะ ≥ 44px — brand.md ข้อ 9 */
+  padding: 0.75rem 1.5rem;
+  border: none;
+  border-radius: 999px;
+  font-family: var(--font-body);
+  font-size: var(--fs-body);
+  font-weight: 400;
+  text-decoration: none;
+  transition:
+    transform 0.3s cubic-bezier(0.4, 0, 0.2, 1),
+    box-shadow 0.3s cubic-bezier(0.4, 0, 0.2, 1),
+    background-color 0.3s;
+}
+
+.btn-primary {
+  background: var(--seal-magenta);
+  color: #fff;
+  box-shadow: 0 6px 20px -8px rgba(181, 36, 107, 0.7);
+}
+
+.btn-soft {
+  background: color-mix(in srgb, var(--paper) 92%, transparent);
+  color: var(--ink);
+  border: 1px solid color-mix(in srgb, var(--theme-pink) 55%, transparent);
+  box-shadow: var(--shadow-soft);
+}
+
+@media (hover: hover) {
+  .btn:hover {
+    transform: translateY(-2px);
+  }
+  .btn-primary:hover {
+    box-shadow: 0 10px 28px -8px rgba(181, 36, 107, 0.8);
+  }
+}
+
+.btn:active {
+  transform: translateY(0) scale(0.98);
+}
+
+.btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+  transform: none;
+}
+
+/* เส้นคั่นไล่เฉด */
+.divider {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.75rem;
+  width: 100%;
+  color: var(--theme-pink);
+}
+
+.divider::before,
+.divider::after {
+  content: '';
+  height: 1px;
+  flex: 1;
+  max-width: 6rem;
+  background: linear-gradient(
+    to right,
+    transparent,
+    color-mix(in srgb, var(--theme-pink) 80%, transparent),
+    transparent
+  );
+}
+
+/* ============================================================
+   Reduced motion — brand.md ข้อ 5.4
+   ============================================================ */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
