@@ -47,6 +47,9 @@ export function Gallery({ reduced }: { reduced: boolean }) {
                 : photo.layout === 'banner'
                   ? '3 / 2'
                   : '4 / 5';
+            // รูปแนวตั้งที่ไม่ครอป ถ้าปล่อยเต็มความกว้างจะสูงเกินไปบนจอใหญ่
+            // (กว้าง 672px → สูงกว่า 1000px) จึงจำกัดความกว้างแล้วจัดกึ่งกลาง
+            const capPortrait = photo.layout === 'full' && photo.orientation === 'portrait';
             return (
               <motion.button
                 key={photo.src}
@@ -56,9 +59,10 @@ export function Gallery({ reduced }: { reduced: boolean }) {
                   setOpenIndex(i);
                 }}
                 aria-label={`ดูรูปขนาดเต็ม: ${photo.alt}`}
-                className={`block w-full overflow-hidden rounded-[var(--radius-md)] ${wide ? 'col-span-2' : ''}`}
+                className={`block w-full overflow-hidden rounded-[var(--radius-md)] ${wide ? 'col-span-2' : ''} ${capPortrait ? 'mx-auto' : ''}`}
                 style={{
                   aspectRatio: aspect,
+                  maxWidth: capPortrait ? 'min(100%, 22rem)' : undefined,
                   boxShadow: 'var(--shadow-soft)',
                   border: '1px solid rgba(255,255,255,.6)',
                   // blur placeholder กันภาพกระพริบขาวระหว่างโหลด
