@@ -2,7 +2,14 @@
 <html lang="th">
   <head>
     <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+    <!-- ปิดการซูม — พอหน้าจอถูกซูมเข้า ผู้ใช้จะเลื่อนซ้ายขวาได้ (เลื่อน visual viewport)
+         ซึ่ง CSS ห้ามไม่ได้ ทำให้หน้าจอ "หลุด" ตอนสลับแอปกลับมา
+         หมายเหตุ: iOS Safari เมิน user-scalable=no ตัวที่บังคับได้จริงคือ
+         touch-action: pan-y ใน theme.css — meta นี้เอาไว้ครอบเบราว์เซอร์อื่น -->
+    <meta
+      name="viewport"
+      content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover"
+    />
     <meta name="theme-color" content="#F3C6D6" />
 
     <title>Wandee & Naruebet · 18 ตุลาคม 2569 | #DAWSUNWEDDING</title>

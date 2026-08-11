@@ -127,11 +127,14 @@ body {
   text-rendering: optimizeLegibility;
   overflow-x: clip;
   overscroll-behavior-x: none;
-  /* อนุญาตแค่ปัดขึ้น-ลง และซูมสองนิ้ว — ปัดซ้ายขวาไม่ทำอะไร
-     (ยังคง pinch-zoom ไว้ เพราะผู้สูงอายุใช้ซูมอ่าน ถ้าตัดออกจะเข้าถึงยาก)
+  /* อนุญาตแค่ปัดขึ้น-ลง — ปัดซ้ายขวาและถ่างนิ้วซูมไม่ทำอะไรเลย
+     ตัด pinch-zoom ออกเพราะพอจอถูกซูมเข้าแล้วจะเลื่อนซ้ายขวาได้เสมอ
+     (เป็นการเลื่อน visual viewport ซึ่ง overflow-x ห้ามไม่ได้)
+     ตัวนี้สำคัญกว่า meta viewport เพราะ iOS Safari เมิน user-scalable=no แต่เคารพ touch-action
+     ชดเชยเรื่องการเข้าถึง: ตัวอักษรเว็บนี้ใหญ่อยู่แล้ว และปุ่มทุกตัว ≥48px
      องค์ประกอบที่ต้องปัดแนวนอนเอง เช่นรูปใน lightbox
      Motion จะตั้ง touch-action ของตัวเองทับให้อยู่แล้ว */
-  touch-action: pan-y pinch-zoom;
+  touch-action: pan-y;
 }
 
 @supports not (overflow: clip) {

@@ -1,10 +1,21 @@
 import { motion } from 'motion/react';
-import { copy } from '../config/site';
+import { asset, copy } from '../config/site';
 import { SectionHeading } from '../components/Ornaments';
 import { useToast } from '../components/Toast';
 import { copyText } from '../lib/clipboard';
-import { downloadIcs } from '../lib/ics';
+import { googleCalendarUrl } from '../lib/ics';
 import { reveal, staggerParent, VIEWPORT } from '../lib/motion';
+
+function CalendarIcon() {
+  return (
+    <svg width="18" height="18" viewBox="0 0 24 24" aria-hidden="true">
+      <g fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+        <rect x="3" y="5" width="18" height="16" rx="2.5" />
+        <path d="M3 10h18M8 3v4M16 3v4M12 14v4M10 16h4" />
+      </g>
+    </svg>
+  );
+}
 
 function LineIcon() {
   return (
@@ -68,20 +79,30 @@ export function ShareSave({ reduced }: { reduced: boolean }) {
             {copy.share.copy}
           </motion.button>
 
-          <motion.button
+          {/* ปฏิทินแยก 2 ปุ่ม —
+              เดิมใช้ปุ่มเดียวสร้างไฟล์ .ics เป็น blob ในเบราว์เซอร์
+              ซึ่ง iOS Safari และ in-app browser ของ LINE บล็อก กดแล้วไม่เกิดอะไรเลย
+              · Google = หน้าเว็บธรรมดา เปิดได้ทุกเบราว์เซอร์แน่นอน
+              · .ics = ไฟล์จริงบนเซิร์ฟเวอร์ iOS เปิดหน้าตัวอย่างปฏิทินให้กดเพิ่มได้ */}
+          <motion.a
             variants={reveal(reduced)}
-            type="button"
-            onClick={downloadIcs}
+            href={googleCalendarUrl()}
+            target="_blank"
+            rel="noopener noreferrer"
             className="btn btn-soft"
           >
-            <svg width="18" height="18" viewBox="0 0 24 24" aria-hidden="true">
-              <g fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
-                <rect x="3" y="5" width="18" height="16" rx="2.5" />
-                <path d="M3 10h18M8 3v4M16 3v4M12 14v4M10 16h4" />
-              </g>
-            </svg>
-            {copy.share.calendar}
-          </motion.button>
+            <CalendarIcon />
+            {copy.share.calendarGoogle}
+          </motion.a>
+
+          <motion.a
+            variants={reveal(reduced)}
+            href={asset('dawsun-wedding.ics')}
+            className="btn btn-soft"
+          >
+            <CalendarIcon />
+            {copy.share.calendarApple}
+          </motion.a>
         </motion.div>
       </div>
     </section>

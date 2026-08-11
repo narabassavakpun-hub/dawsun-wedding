@@ -6,7 +6,8 @@
   "description": "Wedding e-card for Wandee (Daw) & Naruebet (Sun) — 18 October 2026",
   "scripts": {
     "dev": "vite",
-    "build": "tsc --noEmit && vite build",
+    "build": "npm run ics && tsc --noEmit && vite build",
+    "ics": "node scripts/make-ics.mjs",
     "preview": "vite preview",
     "lint": "tsc --noEmit",
     "optimize": "node scripts/optimize-images.mjs",

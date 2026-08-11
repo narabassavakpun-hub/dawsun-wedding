@@ -26,14 +26,26 @@ function fold(line: string): string {
   return out.join('\r\n ');
 }
 
+/** เวลาเริ่ม-จบงาน ตามเวลาไทย (ใช้ร่วมกับลิงก์ Google Calendar) */
+export const EVENT_START_LOCAL = '20261018T073900';
+export const EVENT_END_LOCAL = '20261018T140000';
+/** เวลาเดียวกันในรูป UTC — Google Calendar รับเฉพาะรูปแบบนี้ (ไทย = UTC+7) */
+export const EVENT_START_UTC = '20261018T003900Z';
+export const EVENT_END_UTC = '20261018T070000Z';
+
 /**
- * สร้างไฟล์ .ics ฝั่ง client (ไม่ต้องมีเซิร์ฟเวอร์)
- * เวลาผูกกับ Asia/Bangkok เสมอ ไม่ขึ้นกับ timezone ของเครื่องผู้ใช้
+ * สร้างเนื้อไฟล์ .ics — เวลาผูกกับ Asia/Bangkok เสมอ ไม่ขึ้นกับเครื่องผู้ใช้
+ *
+ * ฟังก์ชันนี้ถูกเรียกจาก `scripts/make-ics.mjs` ตอน build เพื่อเขียนเป็นไฟล์นิ่ง
+ * `public/dawsun-wedding.ics` — **ไม่ได้สร้างในเบราว์เซอร์แล้ว**
+ * เพราะ iOS Safari กับ in-app browser ของ LINE บล็อกทั้ง blob: URL และ attribute `download`
+ * กดปุ่มแล้วเลยไม่เกิดอะไรขึ้นเลย
  */
 export function buildIcs(): string {
-  const start = '20261018T073900';
-  const end = '20261018T140000';
-  const stamp = new Date().toISOString().replace(/[-:]/g, '').replace(/\.\d{3}/, '');
+  const start = EVENT_START_LOCAL;
+  const end = EVENT_END_LOCAL;
+  // ตรึงไว้ ไม่ใช้เวลาปัจจุบัน เพื่อให้ไฟล์ที่ build ออกมาเหมือนเดิมทุกครั้ง
+  const stamp = '20260811T000000Z';
 
   const summary = `งานฉลองมงคลสมรส ${couple.bride.nicknameTh} & ${couple.groom.nicknameTh}`;
   const location = `${venue.nameTh} ${venue.nameEn} ${venue.area} (${venue.room}) ${venue.addressLines.join(' ')}`;
@@ -84,16 +96,33 @@ export function buildIcs(): string {
   return lines.join('\r\n');
 }
 
-export function downloadIcs() {
-  // ﻿ (BOM) ช่วยให้แอปปฏิทินบางตัวอ่านภาษาไทยได้ถูกต้อง
-  const blob = new Blob(['﻿' + buildIcs()], { type: 'text/calendar;charset=utf-8' });
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement('a');
-  a.href = url;
-  a.download = 'dawsun-wedding-2026.ics';
-  document.body.appendChild(a);
-  a.click();
-  a.remove();
-  // ปล่อย URL หลังจากเบราว์เซอร์เริ่มดาวน์โหลดแล้ว
-  setTimeout(() => URL.revokeObjectURL(url), 1000);
+/**
+ * ลิงก์เพิ่มกิจกรรมลง Google Calendar
+ *
+ * เป็นแค่หน้าเว็บธรรมดา จึงเปิดได้ทุกเบราว์เซอร์ **รวม in-app browser ของ LINE**
+ * ต่างจากไฟล์ .ics ที่บางเบราว์เซอร์ปฏิเสธ
+ */
+export function googleCalendarUrl(): string {
+  const summary = `งานฉลองมงคลสมรส ${couple.bride.nicknameTh} & ${couple.groom.nicknameTh}`;
+  const location = `${venue.nameTh} ${venue.nameEn} ${venue.area} (${venue.room}) ${venue.addressLines.join(' ')}`;
+  const details = [
+    `${couple.bride.fullNameTh} (${couple.bride.nicknameTh})`,
+    `${couple.groom.fullNameTh} (${couple.groom.nicknameTh})`,
+    '',
+    '07.39 น. พิธีสงฆ์',
+    '09.39 น. พิธีแห่ขันหมาก',
+    '11.09 น. พิธีฉลองมงคลสมรส',
+    '',
+    couple.hashtag,
+  ].join('\n');
+
+  const params = new URLSearchParams({
+    action: 'TEMPLATE',
+    text: summary,
+    dates: `${EVENT_START_UTC}/${EVENT_END_UTC}`,
+    details,
+    location,
+    ctz: 'Asia/Bangkok',
+  });
+  return `https://calendar.google.com/calendar/render?${params.toString()}`;
 }

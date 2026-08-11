@@ -4,7 +4,9 @@ import { asset, assets, copy, couple } from '../config/site';
 import { Heart, SectionHeading } from '../components/Ornaments';
 import { FlowerAccent } from '../components/FlowerAccent';
 import { GiftBox, type BoxState } from '../components/GiftBox';
+import { useToast } from '../components/Toast';
 import { celebrate } from '../lib/celebrate';
+import { saveImage } from '../lib/saveImage';
 import { submitSlip } from '../lib/submitSlip';
 import { EASE, reveal, staggerParent, VIEWPORT } from '../lib/motion';
 
@@ -27,6 +29,7 @@ type Stage = 'closed' | 'qr' | 'wrapping' | 'flying' | 'sent';
 
 /** ตอนที่ 11 — ร่วมมอบของขวัญ (prd.md ตอน 11) */
 export function Gift({ reduced }: { reduced: boolean }) {
+  const toast = useToast();
   const [stage, setStage] = useState<Stage>('closed');
   const [qrMissing, setQrMissing] = useState(false);
   const [file, setFile] = useState<File | null>(null);
@@ -73,6 +76,11 @@ export function Gift({ reduced }: { reduced: boolean }) {
       window.clearTimeout(timerRef.current);
     };
   }, []);
+
+  const handleSaveQr = async () => {
+    const result = await saveImage(qrSrc, 'dawsun-wedding-promptpay.png');
+    if (!result.ok) toast(copy.gift.saveLongPress);
+  };
 
   const handleSend = async () => {
     if (!file || busy) return;
@@ -311,9 +319,28 @@ export function Gift({ reduced }: { reduced: boolean }) {
                     </div>
 
                     {!qrMissing && (
-                      <a href={qrSrc} download="dawsun-wedding-promptpay.png" className="btn btn-soft mt-4">
-                        {copy.gift.save}
-                      </a>
+                      <>
+                        <button type="button" onClick={handleSaveQr} className="btn btn-soft mt-4">
+                          <svg width="18" height="18" viewBox="0 0 24 24" aria-hidden="true">
+                            <path
+                              d="M12 3v12m0 0l-4.5-4.5M12 15l4.5-4.5M4 19h16"
+                              fill="none"
+                              stroke="currentColor"
+                              strokeWidth="1.8"
+                              strokeLinecap="round"
+                              strokeLinejoin="round"
+                            />
+                          </svg>
+                          {copy.gift.save}
+                        </button>
+                        {/* ทางออกสำรองที่ผู้ใช้ทำเองได้เสมอ ไม่ว่าเบราว์เซอร์จะรองรับอะไร */}
+                        <p
+                          className="mt-2"
+                          style={{ fontSize: 'var(--fs-caption)', color: 'var(--ink-muted)' }}
+                        >
+                          {copy.gift.saveHint}
+                        </p>
+                      </>
                     )}
 
                     <hr

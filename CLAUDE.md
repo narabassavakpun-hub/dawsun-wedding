@@ -175,6 +175,10 @@ Push เข้า `main` → GitHub Actions build แล้วขึ้น Pages
 
 | อาการ | สาเหตุ / วิธีแก้ |
 |---|---|
+| **กดปุ่มดาวน์โหลดแล้วไม่เกิดอะไร (มือถือ)** | iOS Safari และ in-app browser ของ LINE **บล็อกทั้ง `blob:` URL และ attribute `download`** — ต้องใช้ไฟล์จริงบนเซิร์ฟเวอร์ (เช่น `.ics`) หรือ Web Share API แทน ห้ามสร้างไฟล์ในเบราว์เซอร์ |
+| **บันทึกรูปแล้วไม่เข้าคลังภาพ** | `<a download>` บนมือถือลงที่ "ไฟล์" ไม่ใช่ "รูปภาพ" — ต้องใช้ `navigator.share({ files })` เพื่อเปิด share sheet ให้กด "บันทึกภาพ" ดู `src/lib/saveImage.ts` |
+| **เพลงหายหลังสลับแอปกลับมา** | อย่าสั่ง `audio.pause()` เองตอนแท็บซ่อน และถ้า `play()` ถูกปฏิเสธ **ห้ามล้างเจตนาผู้ใช้** ให้ตั้ง `blocked` ให้ปุ่มกระพริบแทน ดู `MusicPlayer.tsx` |
+| **จอเลื่อนซ้ายขวาได้เอง** | หน้าจอถูกซูม แล้วเลื่อน visual viewport ซึ่ง `overflow-x` ห้ามไม่ได้ — แก้ด้วย `touch-action: pan-y` (สำคัญกว่า meta viewport เพราะ iOS เมิน `user-scalable=no`) |
 | **ไฟล์ที่เพิ่งวางหายไปเอง** | วางลง `dist/images/` แทน `public/images/` — **`dist/` ถูกล้างทิ้งทั้งโฟลเดอร์ทุกครั้งที่ `npm run build`** สองโฟลเดอร์นี้หน้าตาเหมือนกันใน VS Code ให้วางที่ **`public/`** เสมอ แล้ว build จะคัดลอกไป `dist/` ให้เอง |
 | เพลงไม่เล่น | เบราว์เซอร์บล็อก autoplay — ต้องเริ่มเล่นใน event handler ของ "แตะซอง" เท่านั้น ห้ามเรียก `play()` ใน `useEffect` |
 | รูป 404 บน Pages | `base` ใน `vite.config.ts` ไม่ตรงชื่อ repo |

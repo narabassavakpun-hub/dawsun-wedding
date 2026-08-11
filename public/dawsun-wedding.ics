@@ -1,0 +1,38 @@
+﻿BEGIN:VCALENDAR
+VERSION:2.0
+PRODID:-//DAWSUN Wedding//E-Card//TH
+CALSCALE:GREGORIAN
+METHOD:PUBLISH
+BEGIN:VTIMEZONE
+TZID:Asia/Bangkok
+BEGIN:STANDARD
+DTSTART:19700101T000000
+TZOFFSETFROM:+0700
+TZOFFSETTO:+0700
+TZNAME:+07
+END:STANDARD
+END:VTIMEZONE
+BEGIN:VEVENT
+UID:dawsun-wedding-18.10.2026@dawsunwedding
+DTSTAMP:20260811T000000Z
+DTSTART;TZID=Asia/Bangkok:20261018T073900
+DTEND;TZID=Asia/Bangkok:20261018T140000
+SUMMARY:งานฉลองมงคลสมรส ดาว & ซัน
+LOCATION:ริมธารา RIMTARA พระราม 3 (ห้อง
+ ริมธารา) อาคาร เอส วี ซิตี้ 
+ ชั้น G ติดแม่น้ำ ถนนพระราม 3 
+ แขวงบางโพงพาง เขตยานนาวา ก
+ รุงเทพมหานคร
+DESCRIPTION:นางสาววันดี รอดไสว (ดาว
+ )\nนายนฤเบศร์ เสวกพันธ์ (ซัน)\
+ n\n07.39 น. พิธีสงฆ์\n09.39 น. พิธีแห่
+ ขันหมาก\n11.09 น. พิธีฉลองมงคลส
+ มรส\n\n#DAWSUNWEDDING
+BEGIN:VALARM
+TRIGGER:-P1D
+ACTION:DISPLAY
+DESCRIPTION:พรุ่งนี้งานแต่งงาน ดา
+ ว & ซัน
+END:VALARM
+END:VEVENT
+END:VCALENDAR

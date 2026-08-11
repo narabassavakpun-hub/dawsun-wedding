@@ -17,6 +17,12 @@ const TARGET_VOLUME = 0.55;
 export function MusicPlayer({ shouldPlay, reduced }: { shouldPlay: boolean; reduced: boolean }) {
   const audioRef = useRef<HTMLAudioElement>(null);
   const fadeRef = useRef<number>(0);
+  /**
+   * เจตนาของผู้ใช้ ("อยากให้เพลงเล่นอยู่") — แยกจาก state `playing` ที่สะท้อนของจริง
+   * ต้องแยกกัน เพราะระบบอาจหยุดเพลงเองโดยที่ผู้ใช้ไม่ได้สั่ง (สลับแอป สายเข้า)
+   * ถ้าเอามาปนกันจะทำให้พอกลับเข้าเว็บแล้วเพลงหายไปเลยแทนที่จะเล่นต่อ
+   */
+  const wantPlayRef = useRef(false);
   const [playing, setPlaying] = useState(false);
   const [blocked, setBlocked] = useState(false);
   const [visible, setVisible] = useState(false);
@@ -48,35 +54,71 @@ export function MusicPlayer({ shouldPlay, reduced }: { shouldPlay: boolean; redu
     const audio = audioRef.current;
     if (!audio) return;
 
+    wantPlayRef.current = true; // ผู้ใช้แตะซอง = ตั้งใจให้เพลงเล่น
     audio.volume = 0;
     audio
       .play()
       .then(() => {
-        setPlaying(true);
         setBlocked(false);
         fadeTo(TARGET_VOLUME);
       })
       .catch(() => {
         // เบราว์เซอร์ยังบล็อก (บาง in-app browser เข้มกว่าปกติ) — เชิญให้กดปุ่มเอง
-        setPlaying(false);
+        // ไม่ล้าง wantPlayRef เพื่อให้ยังพยายามเล่นต่อได้เมื่อมีโอกาส
         setBlocked(true);
       });
   }, [shouldPlay]);
 
-  // หยุดเล่นเมื่อแท็บถูกซ่อน แล้วเล่นต่อเมื่อกลับมา
+  /**
+   * เล่นต่อเมื่อกลับเข้าเว็บหลังสลับไปแอปอื่น
+   *
+   * ⚠️ ห้ามสั่ง audio.pause() เองตอนแท็บถูกซ่อน — เบราว์เซอร์มือถือหยุดให้เองอยู่แล้ว
+   * การสั่งเองคือต้นเหตุที่ทำให้ตอนกลับมาต้องเรียก play() ใหม่ แล้วโดน iOS ปฏิเสธ
+   * เพราะไม่ได้มาจาก user gesture ผลคือเพลงหายเงียบไปเลย
+   *
+   * ⚠️ ถ้า play() ถูกปฏิเสธ **ห้ามล้างเจตนาผู้ใช้** (wantPlayRef) ให้ตั้ง blocked แทน
+   * ปุ่มหัวใจจะกระพริบเชิญให้แตะ ซึ่งการแตะนั้นเป็น user gesture ที่ iOS ยอมรับ
+   */
   useEffect(() => {
-    const onVisibility = () => {
+    const tryResume = () => {
       const audio = audioRef.current;
-      if (!audio) return;
-      if (document.hidden) {
-        audio.pause();
-      } else if (playing) {
-        void audio.play().catch(() => setPlaying(false));
-      }
+      if (!audio || document.hidden) return;
+      if (!wantPlayRef.current || !audio.paused) return;
+
+      audio
+        .play()
+        .then(() => {
+          setBlocked(false);
+          fadeTo(TARGET_VOLUME);
+        })
+        .catch(() => setBlocked(true));
     };
-    document.addEventListener('visibilitychange', onVisibility);
-    return () => document.removeEventListener('visibilitychange', onVisibility);
-  }, [playing]);
+
+    document.addEventListener('visibilitychange', tryResume);
+    // iOS ใช้ bfcache — กลับมาจากแอปอื่นบางครั้งยิงแค่ pageshow ไม่ยิง visibilitychange
+    window.addEventListener('pageshow', tryResume);
+    window.addEventListener('focus', tryResume);
+    return () => {
+      document.removeEventListener('visibilitychange', tryResume);
+      window.removeEventListener('pageshow', tryResume);
+      window.removeEventListener('focus', tryResume);
+    };
+  }, []);
+
+  // ผูกสถานะปุ่มกับสถานะจริงของ <audio> ไม่ใช่เดาเอง
+  // ถ้าระบบหยุดเพลงเอง (สายเข้า สลับแอป) ปุ่มจะเปลี่ยนตามทันที
+  useEffect(() => {
+    const audio = audioRef.current;
+    if (!audio) return;
+    const onPlay = () => setPlaying(true);
+    const onPause = () => setPlaying(false);
+    audio.addEventListener('play', onPlay);
+    audio.addEventListener('pause', onPause);
+    return () => {
+      audio.removeEventListener('play', onPlay);
+      audio.removeEventListener('pause', onPause);
+    };
+  }, []);
 
   useEffect(() => () => window.clearInterval(fadeRef.current), []);
 
@@ -85,16 +127,14 @@ export function MusicPlayer({ shouldPlay, reduced }: { shouldPlay: boolean; redu
     if (!audio) return;
 
     if (playing) {
-      fadeTo(0, () => {
-        audio.pause();
-        setPlaying(false);
-      });
+      wantPlayRef.current = false; // ผู้ใช้สั่งหยุดเอง — อย่าไปเล่นต่อให้ตอนกลับมา
+      fadeTo(0, () => audio.pause()); // setPlaying มาจาก event 'pause' ของ audio เอง
     } else {
+      wantPlayRef.current = true;
       audio.volume = 0;
       void audio
         .play()
         .then(() => {
-          setPlaying(true);
           setBlocked(false);
           fadeTo(TARGET_VOLUME);
         })

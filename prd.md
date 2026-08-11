@@ -337,7 +337,13 @@ Theme color    ชมพู · ลาเวนเดอร์ · ฟ้า · �
 |---|---|
 | `แชร์ผ่าน LINE` | เปิด `https://social-plugins.line.me/lineit/share?url=<encoded>` แท็บใหม่ |
 | `คัดลอกลิงก์` | `navigator.clipboard.writeText()` + toast ยืนยัน |
-| `เพิ่มลงปฏิทิน` | สร้างไฟล์ `.ics` ฝั่ง client แล้วดาวน์โหลด |
+| `เพิ่มลง Google ปฏิทิน` | ลิงก์ `calendar.google.com/calendar/render?action=TEMPLATE&...` |
+| `เพิ่มลงปฏิทิน iPhone` | ลิงก์ตรงไปไฟล์ `public/dawsun-wedding.ics` |
+
+> **ห้ามกลับไปสร้าง `.ics` เป็น blob ในเบราว์เซอร์**
+> iOS Safari และ in-app browser ของ LINE บล็อกทั้ง `blob:` URL และ attribute `download`
+> กดปุ่มแล้วไม่เกิดอะไรเลย — เคยเป็นบั๊กที่แขกเจอจริงมาแล้ว
+> ไฟล์ถูกสร้างตอน build ด้วย `scripts/make-ics.mjs` (ผูกเข้า `npm run build` แล้ว)
 
 **สเปกไฟล์ `.ics`**
 ```
