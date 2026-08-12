@@ -1,10 +1,24 @@
+import { useEffect, useState } from 'react';
 import { motion } from 'motion/react';
 import { asset, copy } from '../config/site';
 import { SectionHeading } from '../components/Ornaments';
 import { useToast } from '../components/Toast';
 import { copyText } from '../lib/clipboard';
 import { googleCalendarUrl } from '../lib/ics';
+import { canShareLink, shareLink } from '../lib/share';
 import { reveal, staggerParent, VIEWPORT } from '../lib/motion';
+
+/** ลูกศรแชร์มาตรฐาน — สื่อว่าเลือกปลายทางได้เอง ไม่ผูกกับแอปใดแอปหนึ่ง */
+function ShareIcon() {
+  return (
+    <svg width="18" height="18" viewBox="0 0 24 24" aria-hidden="true">
+      <g fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+        <path d="M12 3v13M12 3L8 7M12 3l4 4" />
+        <path d="M5 13v6a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-6" />
+      </g>
+    </svg>
+  );
+}
 
 function CalendarIcon() {
   return (
@@ -36,6 +50,20 @@ export function ShareSave({ reduced }: { reduced: boolean }) {
   const handleCopyLink = async () => {
     const ok = await copyText(pageUrl);
     toast(ok ? copy.toast.copiedLink : copy.toast.copyFailed);
+  };
+
+  // เช็กหลัง mount ไม่ใช่ตอน render เพื่อให้ผลตรงกันทุกครั้งที่วาดครั้งแรก
+  const [canShare, setCanShare] = useState(false);
+  useEffect(() => setCanShare(canShareLink()), []);
+
+  const handleShare = async () => {
+    const result = await shareLink({
+      title: copy.share.shareTitle,
+      text: copy.share.shareText,
+      url: pageUrl,
+    });
+    // 'shared' รวมกรณีผู้ใช้กดยกเลิกด้วย — ต้องเงียบ ห้ามเด้งข้อความว่าล้มเหลว
+    if (result === 'failed') await handleCopyLink();
   };
 
   const lineShareUrl = `https://social-plugins.line.me/lineit/share?url=${encodeURIComponent(pageUrl)}`;
@@ -88,17 +116,32 @@ export function ShareSave({ reduced }: { reduced: boolean }) {
           whileInView="visible"
           viewport={VIEWPORT}
         >
-          <motion.a
-            variants={reveal(reduced)}
-            href={lineShareUrl}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="btn btn-soft"
-            style={{ color: '#06C755' }}
-          >
-            <LineIcon />
-            <span style={{ color: 'var(--ink)' }}>{copy.share.line}</span>
-          </motion.a>
+          {/* รองรับ Web Share = เปิด share sheet ของระบบ เลือกแอปแล้วเด้งเข้าแอปนั้นเลย
+              ไม่รองรับ (Firefox เดสก์ท็อป ฯลฯ) = คงปุ่ม LINE แบบเดิมไว้
+              จะได้ไม่กลายเป็นปุ่มตายที่กดแล้วไม่มีอะไรเกิดขึ้น */}
+          {canShare ? (
+            <motion.button
+              variants={reveal(reduced)}
+              type="button"
+              onClick={handleShare}
+              className="btn btn-primary"
+            >
+              <ShareIcon />
+              {copy.share.shareCard}
+            </motion.button>
+          ) : (
+            <motion.a
+              variants={reveal(reduced)}
+              href={lineShareUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="btn btn-soft"
+              style={{ color: '#06C755' }}
+            >
+              <LineIcon />
+              <span style={{ color: 'var(--ink)' }}>{copy.share.line}</span>
+            </motion.a>
+          )}
 
           <motion.button
             variants={reveal(reduced)}

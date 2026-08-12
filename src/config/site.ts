@@ -264,6 +264,12 @@ export const copy = {
   share: {
     eyebrow: 'Share & Save',
     heading: 'บันทึกและแบ่งปัน',
+    /** ปุ่มหลัก — เปิด share sheet ของระบบ ให้เลือกแอปเองได้ */
+    shareCard: 'แชร์การ์ดเชิญ',
+    /** เนื้อหาที่ส่งเข้า share sheet */
+    shareTitle: 'Wandee & Naruebet · 18 ตุลาคม 2569',
+    shareText: 'เรียนเชิญร่วมเป็นเกียรติในพิธีฉลองมงคลสมรส',
+    /** ทางสำรองสำหรับเบราว์เซอร์ที่ไม่รองรับ Web Share API */
     line: 'แชร์ผ่าน LINE',
     copy: 'คัดลอกลิงก์',
     copied: 'คัดลอกแล้ว',

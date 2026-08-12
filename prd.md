@@ -335,8 +335,12 @@ Theme color    ชมพู · ลาเวนเดอร์ · ฟ้า · �
 
 | ปุ่ม | การทำงาน |
 |---|---|
-| `แชร์ผ่าน LINE` | เปิด `https://social-plugins.line.me/lineit/share?url=<encoded>` แท็บใหม่ |
+| `แชร์การ์ดเชิญ` | `navigator.share()` → **เปิด share sheet ของระบบ** เลือก LINE/Messenger/Gmail แล้วเด้งเข้าแอปนั้นทันที |
+| `แชร์ผ่าน LINE` | ทางสำรอง แสดงเฉพาะเบราว์เซอร์ที่ไม่มี Web Share API (Firefox เดสก์ท็อป ฯลฯ) |
 | `คัดลอกลิงก์` | `navigator.clipboard.writeText()` + toast ยืนยัน |
+
+> **กดยกเลิก share sheet จะโยน `AbortError`** ต้องถือว่าจบปกติ ห้ามเด้ง toast ว่าล้มเหลว
+> และต้องเรียก `navigator.share()` ใน event handler ตรงๆ ห้ามมี `await` คั่นก่อน ไม่งั้นเสีย user gesture
 | `เพิ่มลง Google ปฏิทิน` | ลิงก์ `calendar.google.com/calendar/render?action=TEMPLATE&...` |
 | `เพิ่มลงปฏิทิน iPhone` | ลิงก์ตรงไปไฟล์ `public/dawsun-wedding.ics` |
 
